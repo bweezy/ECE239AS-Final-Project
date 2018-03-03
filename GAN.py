@@ -26,7 +26,7 @@ class GAN():
 	def Generator(self, recurrent):
 		
 		# Look into size of noise vectors effect on generative models
-		input_shape = (100,)
+		noise_shape = (100,)
 
 		model = Sequential()
 
@@ -36,9 +36,6 @@ class GAN():
 	def Discriminator(self, recurrent):
 
 
-		
-
 		# Assuming model is not recurrent
-
 		model = Sequential()
 
