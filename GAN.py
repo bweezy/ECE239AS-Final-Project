@@ -1,6 +1,10 @@
 from keras.models import Sequential, Model
-from keras.models import Adam
+from keras.optimizers import Adam
+
+
+
 import numpy as np
+import h5py
 
 
 class GAN():
@@ -14,8 +18,17 @@ class GAN():
 													decay=.99)
 
 
-		self.discriminator = self.Discriminator()
+		self.generator = self.Generator(recurrent=use_reccurent_gen)
+		self.discriminator = self.Discriminator(recurrent=use_recurrent_disc)
+		
 
+
+	def Generator(self, recurrent):
+		
+		# Look into size of noise vectors effect on generative models
+		input_shape = (100,)
+
+		model = Sequential()
 
 
 
@@ -23,13 +36,9 @@ class GAN():
 	def Discriminator(self, recurrent):
 
 
-		# Look into size of noise vectors effect on generative models
-		input_shape = (100,)
+		
 
+		# Assuming model is not recurrent
 
-		model = 
-
-
-
-
+		model = Sequential()
 
