@@ -12,4 +12,9 @@ files = ['A01T_slice.mat', 'A02T_slice.mat', 'A03T_slice.mat',
 
 X, y = parse_eeg_data(data_directory + '/' + files[0])
 
+X = X[:,:22,:]
+
+
+y = y - 768
+
 print X.shape, y.shape
