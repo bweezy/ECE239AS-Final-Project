@@ -30,6 +30,48 @@ class GAN_CNN():
     # Look into size of noise vectors effect on generative models
     noise_shape = (100,)
     model = Sequential()
+
+
+    model.add(layers.Dense(1*9*200, input_shape=noise_shape,
+                            kernel_initializer='he_normal',
+                            kernel_regularizer=regularizers.l2(.001)))
+    model.add(layers.LeakyReLU(alpha=0.2))
+    model.add(layers.Reshape((1,9,200)))
+    model.add(layers.UpSampling2D(size=(1,3)))
+
+    model.add(layers.Conv2D(100, kernel_size=(1,11), strides=(1,1),
+                            padding='same', 
+                            kernel_initializer='he_normal',
+                            kernel_regularizer=regularizers.l2(.001)))
+    model.add(layers.LeakyReLU(alpha=0.2))
+    model.add(layers.UpSampling2D(size=(1,3)))
+    model.add(layers.Conv2D(50, kernel_size=(1,11), strides=(1,1),
+                            padding='same', 
+                            kernel_initializer='he_normal',
+                            kernel_regularizer=regularizers.l2(.001)))
+    model.add(layers.LeakyReLU(alpha=0.2))
+    model.add(layers.UpSampling2D(size=(1,3)))
+    model.add(layers.Conv2D(25, kernel_size=(1,11), strides=(1,1),
+                            padding='same', 
+                            kernel_initializer='he_normal',
+                            kernel_regularizer=regularizers.l2(.001)))
+    model.add(layers.LeakyReLU(alpha=0.2))
+    model.add(layers.UpSampling2D(size=(22,3)))
+    model.add(layers.Conv2D(25, kernel_size=(22,1),
+                            padding='same',
+                            kernel_initializer='he_normal',
+                            kernel_regularizer=regularizers.l2(.001)))
+    model.add(layers.Conv2D(1, kernel_size=(1,11), strides=(1,1), 
+                            padding='same',
+                            kernel_initializer='he_normal',
+                            kernel_regularizer=regularizers.l2(.001)))
+
+    model.summary()
+
+
+
+
+
       
 
   def Discriminator(self, input_shape):
@@ -43,7 +85,7 @@ class GAN_CNN():
 
       # Data = (22,1000,1)
       model.add(layers.Conv2D(25, kernel_size=(1,11), strides=(1,1), 
-                               padding='valid', input_shape=input_shape, 
+                               padding='same', input_shape=input_shape, 
                                kernel_initializer='he_normal',
                                kernel_regularizer=regularizers.l2(.001)))
       # Data = (22,990,25)
@@ -61,7 +103,7 @@ class GAN_CNN():
       # Data = (1,330,25)
 
       # Second Conv Layer
-      model.add(layers.Conv2D(50, kernel_size=(1,10),
+      model.add(layers.Conv2D(50, kernel_size=(1,11),
                               padding='same',
                               kernel_initializer='he_normal',
                               kernel_regularizer=regularizers.l2(.001)))
@@ -73,8 +115,8 @@ class GAN_CNN():
       # Data = (1,110,50)
 
       # Third Conv Layer
-      model.add(layers.Conv2D(100, kernel_size=(1,9), strides=(1,1),
-                        padding='valid',
+      model.add(layers.Conv2D(100, kernel_size=(1,11), strides=(1,1),
+                        padding='same',
                         kernel_initializer='he_normal',
                         kernel_regularizer=regularizers.l2(.001)))
       model.add(layers.LeakyReLU(alpha=0.2))
@@ -83,7 +125,7 @@ class GAN_CNN():
 
       # Fourth Conv Layer
       model.add(layers.Conv2D(200, kernel_size=(1,11), strides=(1,1),
-                        padding='valid',
+                        padding='same',
                         kernel_initializer='he_normal',
                         kernel_regularizer=regularizers.l2(.001)))                          
       model.add(layers.LeakyReLU(alpha=0.2))
@@ -93,7 +135,7 @@ class GAN_CNN():
 
       model.add(layers.Flatten())
       model.add(layers.Dense(1, activation='sigmoid'))
-      #model.summary()
+      model.summary()
 
       eeg = layers.Input(shape=input_shape)
       validity = model(eeg)
@@ -103,8 +145,16 @@ class GAN_CNN():
 
 if __name__ == '__main__':
 
+  X, y = parse_eeg_data(0)
+
+  X = X[:,:,:729, np.newaxis]
+
+  print X.shape
+  gan = GAN_CNN(X.shape[1:])
 
 
+
+  '''
   for i in np.arange(9):
     X, y = parse_eeg_data(0)
 
@@ -114,5 +164,5 @@ if __name__ == '__main__':
     loss = gan.discriminator.train_on_batch(X, np.ones(X.shape[0]))
 
     print loss
-
+  '''
 
