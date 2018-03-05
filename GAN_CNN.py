@@ -2,6 +2,7 @@ from keras.models import Sequential, Model
 from keras.optimizers import Adam
 from keras import regularizers, layers
 
+from read_eeg_file import parse_eeg_data
 
 import numpy as np
 import h5py
@@ -92,7 +93,7 @@ class GAN_CNN():
 
       model.add(layers.Flatten())
       model.add(layers.Dense(1, activation='sigmoid'))
-      model.summary()
+      #model.summary()
 
       eeg = layers.Input(shape=input_shape)
       validity = model(eeg)
@@ -100,9 +101,18 @@ class GAN_CNN():
       return Model(eeg, validity)
 
 
-
-
-
 if __name__ == '__main__':
 
-  gan = GAN_CNN()
+
+
+  for i in np.arange(9):
+    X, y = parse_eeg_data(0)
+
+    X = X[:,:,:, np.newaxis]
+    gan = GAN_CNN(X.shape[1:])
+
+    loss = gan.discriminator.train_on_batch(X, np.ones(X.shape[0]))
+
+    print loss
+
+
