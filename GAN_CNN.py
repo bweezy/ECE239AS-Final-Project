@@ -1,47 +1,108 @@
 from keras.models import Sequential, Model
 from keras.optimizers import Adam
-from keras.layers import Input, Conv1D
-from keras import regularizers
+from keras import regularizers, layers
 
 
 import numpy as np
 import h5py
 
 
-class GAN():
+class GAN_CNN():
 
-	def __init__(self, use_reccurent_gen=False,
-								use_recurrent_disc=False):
-		self.input_size = None
-		self.channels = None
+  def __init__(self, input_shape):
+    self.input_size = None
+    self.channels = None
 
-		self.optimizer = Adam(lr=1e-3, beta_1=.9, beta_2=.99,
-													decay=.99)
+    self.optimizer = Adam(lr=1e-3, beta_1=.9, 
+                          beta_2=.99, decay=.99)
 
-
-		self.generator = self.Generator(recurrent=use_reccurent_gen)
-		self.discriminator = self.Discriminator(recurrent=use_recurrent_disc)
-		
-
-
-	def Generator(self, recurrent):
-		
-		# Look into size of noise vectors effect on generative models
-		noise_shape = (100,)
-		model = Sequential()
-		
+    self.generator = self.Generator(output_shape=input_shape)
+    self.discriminator = self.Discriminator(input_shape=input_shape)
+    self.discriminator.compile(loss='binary_crossentropy', 
+            optimizer=self.optimizer,
+            metrics=['accuracy'])
+    
 
 
+  def Generator(self, output_shape):
+      
+    # Look into size of noise vectors effect on generative models
+    noise_shape = (100,)
+    model = Sequential()
+      
+
+  def Discriminator(self, input_shape):
 
 
-	def Discriminator(self, recurrent):
+      # Assuming model is not recurrent
+      model = Sequential()
+
+      # Architecture Based on EEG Classification Model at https://arxiv.org/pdf/1703.05051.pdf
 
 
-		# Assuming model is not recurrent
-		model = Sequential()
-		model.add(Conv1D(64, kernel_size=3, stride=1, 
-										 padding='same', activation='relu',
-										 input_shape=noise_shape, kernel_initializer='he_normal',
-										 kernel_regularizer=regularizers.l2(.001)))
-		
+      # Data = (22,1000,1)
+      model.add(layers.Conv2D(25, kernel_size=(1,11), strides=(1,1), 
+                               padding='valid', input_shape=input_shape, 
+                               kernel_initializer='he_normal',
+                               kernel_regularizer=regularizers.l2(.001)))
+      # Data = (22,990,25)
 
+      model.add(layers.Conv2D(25, kernel_size=(22,1), strides=(1,1),
+                              padding='valid',
+                              kernel_initializer='he_normal',
+                              kernel_regularizer=regularizers.l2(.001)))
+      model.add(layers.LeakyReLU(alpha=0.2))
+      
+      # Data = (1,990,25)
+
+      model.add(layers.AveragePooling2D(pool_size=(1,3)))
+
+      # Data = (1,330,25)
+
+      # Second Conv Layer
+      model.add(layers.Conv2D(50, kernel_size=(1,10),
+                              padding='same',
+                              kernel_initializer='he_normal',
+                              kernel_regularizer=regularizers.l2(.001)))
+      model.add(layers.LeakyReLU(alpha=0.2))
+
+      # Data = (1,330,50)
+
+      model.add(layers.AveragePooling2D(pool_size=(1,3)))
+      # Data = (1,110,50)
+
+      # Third Conv Layer
+      model.add(layers.Conv2D(100, kernel_size=(1,9), strides=(1,1),
+                        padding='valid',
+                        kernel_initializer='he_normal',
+                        kernel_regularizer=regularizers.l2(.001)))
+      model.add(layers.LeakyReLU(alpha=0.2))
+      model.add(layers.AveragePooling2D(pool_size=(1,3)))
+      # Data = (1,34,100)
+
+      # Fourth Conv Layer
+      model.add(layers.Conv2D(200, kernel_size=(1,11), strides=(1,1),
+                        padding='valid',
+                        kernel_initializer='he_normal',
+                        kernel_regularizer=regularizers.l2(.001)))                          
+      model.add(layers.LeakyReLU(alpha=0.2))
+      # Data = (1,24,200)
+      model.add(layers.AveragePooling2D(pool_size=(1,3)))
+      # Data = (1,8,200)
+
+      model.add(layers.Flatten())
+      model.add(layers.Dense(1, activation='sigmoid'))
+      model.summary()
+
+      eeg = layers.Input(shape=input_shape)
+      validity = model(eeg)
+
+      return Model(eeg, validity)
+
+
+
+
+
+if __name__ == '__main__':
+
+  gan = GAN_CNN()
