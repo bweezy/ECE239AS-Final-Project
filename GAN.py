@@ -29,12 +29,17 @@ class GAN():
 	def Generator(self, recurrent):
 		
 		# Look into size of noise vectors effect on generative models
+		data_shape = (self.channels, self.input_size)
 		noise_shape = (100,)
 
 		model = Sequential()
+		model.add(LSTM(100, input_shape=noise_shape))
+		model.add(Reshape(data_shape))
 
+		noise = Input(shape=noise_shape)
+		eeg_output = model(noise)
 
-
+		return Model(inp, eeg_output)
 
 	def Discriminator(self, recurrent):
 
@@ -43,7 +48,6 @@ class GAN():
 		model = Sequential()
 		model.add(LSTM(100,input_shape=data_shape))
 		model.add(Dense(1, activation='sigmoid'))
-		print(model.summary())
 
 		inp = Input(shape=data_shape)
 		validity = model(inp)
