@@ -103,8 +103,6 @@ class GAN_CNN():
 
 if __name__ == '__main__':
 
-
-
   for i in np.arange(9):
     X, y = parse_eeg_data(0)
 
