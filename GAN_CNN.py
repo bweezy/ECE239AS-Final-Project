@@ -18,10 +18,9 @@ class GAN_CNN():
                           beta_2=.99, decay=.99)
 
     self.generator = self.Generator(output_shape=input_shape)
+    self.generator.compile(loss='binary_crossentropy', optimizer=optimizer)
     self.discriminator = self.Discriminator(input_shape=input_shape)
-    self.discriminator.compile(loss='binary_crossentropy', 
-            optimizer=self.optimizer,
-            metrics=['accuracy'])
+    self.discriminator.compile(loss='binary_crossentropy', optimizer=self.optimizer, metrics=['accuracy'])
     
 
 
@@ -143,15 +142,66 @@ class GAN_CNN():
       return Model(eeg, validity)
 
 
+
+  def train(self, X_train, epochs, batch_size=128, save_interval=50):
+
+    # Rescale data set (zero mean, unit variance)
+
+    small_batch = int(batch_size / 2)
+
+    for epoch in range(epochs):
+
+      # -------------------
+      # Train Discriminator
+      # -------------------
+
+		# random half batch implementaiton?
+
+        # Select a random half batch of images
+        idx = np.random.randint(0, X_train.shape[0], small_batch)
+        imgs = X_train[idx]
+        noise = np.random.normal(0, 1, (small_batch, 100))
+
+		# Generate fake images (random noise)
+        fake_imgs = self.generator.predict(noise)
+
+        # Train
+        d_loss_real = self.discriminator.train_on_batch(imgs, np.ones((small_batch, 1)))
+        d_loss_fake = self.discriminator.train_on_batch(fake_imgs, np.zeros((small_batch, 1)))
+        d_loss = 0.5 * np.add(d_loss_real, d_loss_fake)
+
+		# ---------------
+        # Train Generator
+        # ---------------
+
+        noise = np.random.normal(0, 1, (batch_size, 100))
+
+        # Generator wants discriminator to think generated files are valid
+        valid_y = np.array([1] * batch_size)
+
+        # Generator Gradient Update
+        g_loss = self.combined.train_on_batch(noise, valid_y)
+
+        # Plot the progress
+        print ("%d [D loss: %f, acc.: %.2f%%] [G loss: %f]" % (epoch, d_loss[0], 100*d_loss[1], g_loss))
+
+        # If at save interval => save generated image samples
+        # if (epoch % save_interval == 0) self.save_imgs(epoch)
+
+
+
+
+
 if __name__ == '__main__':
 
+  # Load data set
   X, y = parse_eeg_data(0)
 
   X = X[:,:,:729, np.newaxis]
 
   print X.shape
   gan = GAN_CNN(X.shape[1:])
-
+  gan.train(X_train=X, epochs=3, batch_size=32, save_interval=200)
 
 
   '''
