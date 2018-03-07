@@ -18,11 +18,24 @@ class GAN_CNN():
                           beta_2=.99, decay=.99)
 
     self.generator = self.Generator(output_shape=input_shape)
-    self.generator.compile(loss='binary_crossentropy', optimizer=optimizer)
+    self.generator.compile(loss='binary_crossentropy', optimizer=self.optimizer)
     self.discriminator = self.Discriminator(input_shape=input_shape)
     self.discriminator.compile(loss='binary_crossentropy', optimizer=self.optimizer, metrics=['accuracy'])
     
+    # The generator takes noise as input and generated imgs
+    z = layers.Input(shape=(100,))
+    img = self.generator(z)
 
+    # For the combined model we will only train the generator
+    self.discriminator.trainable = False
+
+    # The valid takes generated images as input and determines validity
+    valid = self.discriminator(img)
+
+    # The combined model  (stacked generator and discriminator) takes
+    # noise as input => generates images => determines validity 
+    self.combined = Model(z, valid)
+    self.combined.compile(loss='binary_crossentropy', optimizer=self.optimizer)
 
   def Generator(self, output_shape):
       
@@ -66,6 +79,11 @@ class GAN_CNN():
                             kernel_regularizer=regularizers.l2(.001)))
 
     model.summary()
+
+    noise = layers.Input(shape=noise_shape)
+    img = model(noise)
+
+    return Model(noise, img)
 
 
 
