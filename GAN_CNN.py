@@ -20,14 +20,15 @@ class GAN_CNN():
     self.generator = self.Generator(output_shape=input_shape)
     self.generator.compile(loss='binary_crossentropy', optimizer=self.optimizer)
     self.discriminator = self.Discriminator(input_shape=input_shape)
+    # For the combined model we will only train the generator
+    self.discriminator.trainable = False
     self.discriminator.compile(loss='binary_crossentropy', optimizer=self.optimizer, metrics=['accuracy'])
     
     # The generator takes noise as input and generated imgs
     z = layers.Input(shape=(100,))
     img = self.generator(z)
 
-    # For the combined model we will only train the generator
-    self.discriminator.trainable = False
+
 
     # The valid takes generated images as input and determines validity
     valid = self.discriminator(img)
@@ -165,7 +166,7 @@ class GAN_CNN():
 
     # Rescale data set (zero mean, unit variance)
 
-    small_batch = int(batch_size / 2)
+    mini_batch = int(batch_size / 4)
 
     for epoch in range(epochs):
 
@@ -176,16 +177,17 @@ class GAN_CNN():
 		# random half batch implementaiton?
 
         # Select a random half batch of images
-        idx = np.random.randint(0, X_train.shape[0], small_batch)
+        idx = np.random.randint(0, X_train.shape[0], mini_batch)
+        print(idx)
         imgs = X_train[idx]
-        noise = np.random.normal(0, 1, (small_batch, 100))
+        noise = np.random.normal(0, 1, (mini_batch, 100))
 
 		# Generate fake images (random noise)
         fake_imgs = self.generator.predict(noise)
 
         # Train
-        d_loss_real = self.discriminator.train_on_batch(imgs, np.ones((small_batch, 1)))
-        d_loss_fake = self.discriminator.train_on_batch(fake_imgs, np.zeros((small_batch, 1)))
+        d_loss_real = self.discriminator.train_on_batch(imgs, np.ones((mini_batch, 1)))
+        d_loss_fake = self.discriminator.train_on_batch(fake_imgs, np.zeros((mini_batch, 1)))
         d_loss = 0.5 * np.add(d_loss_real, d_loss_fake)
 
 		# ---------------
