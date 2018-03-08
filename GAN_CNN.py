@@ -77,7 +77,8 @@ class GAN_CNN():
     model.add(layers.Conv2D(1, kernel_size=(1,11), strides=(1,1), 
                             padding='same',
                             kernel_initializer='he_normal',
-                            kernel_regularizer=regularizers.l2(.001)))
+                            kernel_regularizer=regularizers.l2(.001),
+                            activation='tanh'));
 
     model.summary()
 
