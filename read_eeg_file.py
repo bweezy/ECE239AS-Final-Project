@@ -8,23 +8,26 @@ files = ['A01T_slice.mat', 'A02T_slice.mat', 'A03T_slice.mat',
          'A07T_slice.mat', 'A08T_slice.mat', 'A09T_slice.mat']
 
 def parse_eeg_data(subject_number):
-	
-	data = h5py.File(data_directory + '/' + files[subject_number], 'r')
-	X = np.copy(data['image'])
-	y = np.copy(data['type'])
-	y = y[0,0:X.shape[0]:1]
-	y = np.asarray(y, dtype=np.int32)
+  
+  data = h5py.File(data_directory + '/' + files[subject_number], 'r')
+  X = np.copy(data['image'])
+  y = np.copy(data['type'])
+  y = y[0,0:X.shape[0]:1]
+  y = np.asarray(y, dtype=np.int32)
 
-	X = X[:,:22,:]
-	y = y - 768
+  X = X[:,:22,:]
+  y = y - 768
 
-	nan_trials = []
+  nan_trials = []
 
-	for i in np.arange(X.shape[0]):
-		if np.isnan(np.sum(X[i])):
-			nan_trials.append(i)
+  for i in np.arange(X.shape[0]):
+    if np.isnan(np.sum(X[i])):
+      nan_trials.append(i)
 
-	X = np.delete(X,nan_trials,0)
-	y = np.delete(y,nan_trials,0)
+  X = np.delete(X,nan_trials,0)
+  y = np.delete(y,nan_trials,0)
 
-	return X, y
+  X -= np.mean(X)
+  X /= np.max(np.abs(X))
+
+  return X, y
