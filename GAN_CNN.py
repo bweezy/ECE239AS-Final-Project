@@ -3,6 +3,7 @@ from keras.optimizers import Adam
 from keras import regularizers, layers
 from keras.layers import Input
 from keras import backend
+from keras.engine.topology import Container
 
 from read_eeg_file import parse_eeg_data_for_GAN
 
@@ -33,24 +34,24 @@ class GAN_CNN():
     self.input_size = None
     self.channels = None
 
-    self.optimizer = Adam(lr=1e-3, beta_1=.9, 
+    self.optimizer = Adam(lr=2e-4, beta_1=.9, 
                           beta_2=.99, decay=.99)
 
     self.generator = self.Generator(input_shape=gen_input_shape)
     
     self.generator.compile(loss='binary_crossentropy', optimizer=self.optimizer)
 
-    self.discriminator = self.Discriminator(input_shape=disc_input_shape)
+    self.discriminator, self.discriminator_fixed = self.Discriminator(input_shape=disc_input_shape)
     # For the combined model we will only train the generator
-    self.discriminator.trainable = False
     self.discriminator.compile(loss='binary_crossentropy', optimizer=self.optimizer, metrics=['accuracy'])
+    self.discriminator_fixed.trainable = False
     
     # The generator takes incomplete data as input and generates 1 channel
     z = layers.Input(shape=gen_input_shape)
     fake_complete = self.generator(z)
 
     # The valid takes generated eeg data as input and determines validity
-    valid = self.discriminator(fake_complete)
+    valid = self.discriminator_fixed(fake_complete)
 
     # The combined model  (stacked generator and discriminator) takes
     # noise as input => generates images => determines validity 
@@ -127,35 +128,35 @@ class GAN_CNN():
 
       model.add(layers.Conv2D(25, kernel_size=(1,11), strides=(1,1), 
                                padding='same', input_shape=input_shape, 
-                               kernel_initializer='he_normal',
-                               kernel_regularizer=regularizers.l2(.001)))
+                               kernel_initializer='he_normal'))
+                               #kernel_regularizer=regularizers.l2(.001)))
 
       model.add(layers.Conv2D(25, kernel_size=(22,1), strides=(1,1),
                               padding='valid',
-                              kernel_initializer='he_normal',
-                              kernel_regularizer=regularizers.l2(.001)))
+                              kernel_initializer='he_normal'))
+                              #kernel_regularizer=regularizers.l2(.001)))
       model.add(layers.LeakyReLU(alpha=0.2))
       model.add(layers.AveragePooling2D(pool_size=(1,3)))
 
 
       model.add(layers.Conv2D(50, kernel_size=(1,11),
                               padding='same',
-                              kernel_initializer='he_normal',
-                              kernel_regularizer=regularizers.l2(.001)))
+                              kernel_initializer='he_normal'))
+                              #kernel_regularizer=regularizers.l2(.001)))
       model.add(layers.LeakyReLU(alpha=0.2))
       model.add(layers.AveragePooling2D(pool_size=(1,3)))
 
       model.add(layers.Conv2D(100, kernel_size=(1,11), strides=(1,1),
                         padding='same',
-                        kernel_initializer='he_normal',
-                        kernel_regularizer=regularizers.l2(.001)))
+                        kernel_initializer='he_normal'))
+                        #kernel_regularizer=regularizers.l2(.001)))
       model.add(layers.LeakyReLU(alpha=0.2))
       model.add(layers.AveragePooling2D(pool_size=(1,3)))
 
       model.add(layers.Conv2D(200, kernel_size=(1,11), strides=(1,1),
                         padding='same',
-                        kernel_initializer='he_normal',
-                        kernel_regularizer=regularizers.l2(.001)))                          
+                        kernel_initializer='he_normal'))
+                        #kernel_regularizer=regularizers.l2(.001)))                          
       model.add(layers.LeakyReLU(alpha=0.2))
       model.add(layers.AveragePooling2D(pool_size=(1,3)))
 
@@ -166,7 +167,9 @@ class GAN_CNN():
       eeg = layers.Input(shape=input_shape)
       validity = model(eeg)
 
-      return Model(eeg, validity)
+      fixed = Container(eeg, validity)
+
+      return Model(eeg, validity), fixed
 
 
 
@@ -174,7 +177,7 @@ class GAN_CNN():
 
     # Rescale data set (zero mean, unit variance)
 
-    mini_batch = int(batch_size / 4)
+    mini_batch = int(batch_size)
 
     for epoch in range(epochs):
 
@@ -197,27 +200,32 @@ class GAN_CNN():
 
       # Train
       d_loss_real = self.discriminator.train_on_batch(real_eeg, np.ones((mini_batch, 1)))
+      print 'd_loss_real: ', d_loss_real
       d_loss_fake = self.discriminator.train_on_batch(gen_eeg, np.zeros((mini_batch, 1)))
+      print 'd_loss_fake: ', d_loss_fake
       d_loss = 0.5 * np.add(d_loss_real, d_loss_fake)
 
 	    # ---------------
       # Train Generator
       # ---------------
 
-      idx3 = np.random.randint(0, incomplete.shape[0], batch_size)
-      inc_eeg2 = incomplete[idx3]
+      #idx3 = np.random.randint(0, incomplete.shape[0], batch_size)
+      #inc_eeg2 = incomplete[idx3]
 
       # Generator wants discriminator to think generated files are valid
-      valid_y = np.array([1] * batch_size)
+      #valid_y = np.array([1] * batch_size)
 
       # Generator Gradient Update
-      g_loss = self.combined.train_on_batch(inc_eeg2, valid_y)
+      #g_loss = self.combined.train_on_batch(inc_eeg2, valid_y)
 
       # Plot the progress
-      print ("%d [D loss: %f, acc.: %.2f%%] [G loss: %f]" % (epoch, d_loss[0], 100*d_loss[1], g_loss))
+      #print ("%d [D loss: %f, acc.: %.2f%%] [G loss: %f]" % (epoch, d_loss[0], 100*d_loss[1], g_loss))
 
       # If at save interval => save generated image samples
       # if (epoch % save_interval == 0) self.save_imgs(epoch)
+
+
+
 
 
 
