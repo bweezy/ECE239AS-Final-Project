@@ -107,7 +107,7 @@ class GAN_CNN():
 
     model = Model(inputs=input1, outputs=gen_output)
 
-    model.summary()
+    #model.summary()
 
     return model
 
@@ -161,7 +161,7 @@ class GAN_CNN():
 
       model.add(layers.Flatten())
       model.add(layers.Dense(1, activation='sigmoid'))
-      model.summary()
+      #model.summary()
 
       eeg = layers.Input(shape=input_shape)
       validity = model(eeg)
@@ -170,7 +170,7 @@ class GAN_CNN():
 
 
 
-  def train(self, X_train, epochs, batch_size=128, save_interval=50):
+  def train(self, incomplete, complete, epochs, batch_size=128, save_interval=50):
 
     # Rescale data set (zero mean, unit variance)
 
@@ -182,39 +182,42 @@ class GAN_CNN():
       # Train Discriminator
       # -------------------
 
-		# random half batch implementaiton?
+	    # random half batch implementaiton?
 
-        # Select a random half batch of images
-        idx = np.random.randint(0, X_train.shape[0], mini_batch)
-        print(idx)
-        imgs = X_train[idx]
-        noise = np.random.normal(0, 1, (mini_batch, 100))
+      # Select a random half batch of real eeg data
+      idx1 = np.random.randint(0, complete.shape[0], mini_batch)
+      real_eeg = complete[idx1]
 
-		# Generate fake images (random noise)
-        fake_imgs = self.generator.predict(noise)
+      # Select a random half batch of incomplete eeg data
+      idx2 = np.random.randint(0, incomplete.shape[0], mini_batch)
+      inc_eeg = incomplete[idx2]
 
-        # Train
-        d_loss_real = self.discriminator.train_on_batch(imgs, np.ones((mini_batch, 1)))
-        d_loss_fake = self.discriminator.train_on_batch(fake_imgs, np.zeros((mini_batch, 1)))
-        d_loss = 0.5 * np.add(d_loss_real, d_loss_fake)
+	    # Generate fake images (random noise)
+      gen_eeg = self.generator.predict(inc_eeg)
 
-		# ---------------
-        # Train Generator
-        # ---------------
+      # Train
+      d_loss_real = self.discriminator.train_on_batch(real_eeg, np.ones((mini_batch, 1)))
+      d_loss_fake = self.discriminator.train_on_batch(gen_eeg, np.zeros((mini_batch, 1)))
+      d_loss = 0.5 * np.add(d_loss_real, d_loss_fake)
 
-        noise = np.random.normal(0, 1, (batch_size, 100))
+	    # ---------------
+      # Train Generator
+      # ---------------
 
-        # Generator wants discriminator to think generated files are valid
-        valid_y = np.array([1] * batch_size)
+      idx3 = np.random.randint(0, incomplete.shape[0], batch_size)
+      inc_eeg2 = incomplete[idx3]
 
-        # Generator Gradient Update
-        g_loss = self.combined.train_on_batch(noise, valid_y)
+      # Generator wants discriminator to think generated files are valid
+      valid_y = np.array([1] * batch_size)
 
-        # Plot the progress
-        print ("%d [D loss: %f, acc.: %.2f%%] [G loss: %f]" % (epoch, d_loss[0], 100*d_loss[1], g_loss))
+      # Generator Gradient Update
+      g_loss = self.combined.train_on_batch(inc_eeg2, valid_y)
 
-        # If at save interval => save generated image samples
-        # if (epoch % save_interval == 0) self.save_imgs(epoch)
+      # Plot the progress
+      print ("%d [D loss: %f, acc.: %.2f%%] [G loss: %f]" % (epoch, d_loss[0], 100*d_loss[1], g_loss))
+
+      # If at save interval => save generated image samples
+      # if (epoch % save_interval == 0) self.save_imgs(epoch)
 
 
 
@@ -230,7 +233,7 @@ if __name__ == '__main__':
 
   
   gan = GAN_CNN(gen_input_shape=incomplete.shape[1:], disc_input_shape=complete.shape[1:])
-  #gan.train(X_train=X, epochs=3, batch_size=32, save_interval=200)
+  gan.train(incomplete=incomplete, complete=complete, epochs=20, batch_size=32, save_interval=200)
 
 
   '''
