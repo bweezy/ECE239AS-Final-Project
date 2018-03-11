@@ -57,8 +57,7 @@ class GAN_RNN():
 		intermediate_model = LSTM(100, input_shape=input_shape)(input1)
 		intermediate_model_out = Dense(t)(intermediate_model)
 
-		gen_output = Lambda(EEG_Concatenate,
-								   output_shape=(c + 1, t))([input1, intermediate_model_out])
+		gen_output = Lambda(EEG_Concatenate, output_shape=(c + 1, t))([input1, intermediate_model_out])
 
 		model = Model(inputs=input1, outputs=gen_output)
 
