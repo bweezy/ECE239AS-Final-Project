@@ -1,15 +1,18 @@
 from keras.models import Sequential, Model
-from keras.optimizers import Adam
+from keras.optimizers import Adam, SGD
 from keras import regularizers, layers
 from keras.layers import Input
 from keras import backend
 from keras.engine.topology import Container
 
+
 from read_eeg_file import parse_eeg_data_for_GAN
 
 import numpy as np
 import h5py
+import matplotlib.pyplot as plt
 
+np.random.seed(1)
 
 def EEG_Concatenate(input_list):
 
@@ -34,7 +37,7 @@ class GAN_CNN():
     self.input_size = None
     self.channels = None
 
-    self.optimizer = Adam(lr=2e-4, beta_1=.9, 
+    self.optimizer = Adam(lr=5e-4, beta_1=.9, 
                           beta_2=.99, decay=.99)
 
     self.generator = self.Generator(input_shape=gen_input_shape)
@@ -125,7 +128,7 @@ class GAN_CNN():
       model = Sequential()
 
       # Architecture Based on EEG Classification Model at https://arxiv.org/pdf/1703.05051.pdf
-
+    
       model.add(layers.Conv2D(25, kernel_size=(1,11), strides=(1,1), 
                                padding='same', input_shape=input_shape, 
                                kernel_initializer='he_normal'))
@@ -162,7 +165,7 @@ class GAN_CNN():
 
       model.add(layers.Flatten())
       model.add(layers.Dense(1, activation='sigmoid'))
-      #model.summary()
+      model.summary()
 
       eeg = layers.Input(shape=input_shape)
       validity = model(eeg)
@@ -177,7 +180,7 @@ class GAN_CNN():
 
     # Rescale data set (zero mean, unit variance)
 
-    mini_batch = int(batch_size)
+    mini_batch = int(batch_size/4)
 
     for epoch in range(epochs):
 
@@ -193,38 +196,57 @@ class GAN_CNN():
 
       # Select a random half batch of incomplete eeg data
       idx2 = np.random.randint(0, incomplete.shape[0], mini_batch)
-      inc_eeg = incomplete[idx2]
+      inc_eeg = incomplete[idx1]
 
 	    # Generate fake images (random noise)
       gen_eeg = self.generator.predict(inc_eeg)
 
-      # Train
-      d_loss_real = self.discriminator.train_on_batch(real_eeg, np.ones((mini_batch, 1)))
-      print 'd_loss_real: ', d_loss_real
-      d_loss_fake = self.discriminator.train_on_batch(gen_eeg, np.zeros((mini_batch, 1)))
-      print 'd_loss_fake: ', d_loss_fake
-      d_loss = 0.5 * np.add(d_loss_real, d_loss_fake)
+      if(epoch == 0):
+        plt.figure(1)
+        plt.subplot(211)
+        plt.plot(gen_eeg[0,9])
+        plt.subplot(212)
+        plt.plot(real_eeg[0,9])
+
+
+
+      real_results = np.concatenate((np.ones((mini_batch, 1)),np.zeros((mini_batch, 1))))
+      eeg_combined = np.concatenate((real_eeg, gen_eeg))
+      
+      perm = np.random.permutation(eeg_combined.shape[0])
+      real_results = real_results[perm]
+      eeg_combined = eeg_combined[perm]
+      
+
+      d_loss = self.discriminator.train_on_batch(eeg_combined, real_results)
 
 	    # ---------------
       # Train Generator
       # ---------------
 
-      #idx3 = np.random.randint(0, incomplete.shape[0], batch_size)
-      #inc_eeg2 = incomplete[idx3]
+      idx3 = np.random.randint(0, incomplete.shape[0], mini_batch)
+      inc_eeg2 = incomplete[idx3]
 
       # Generator wants discriminator to think generated files are valid
-      #valid_y = np.array([1] * batch_size)
+      valid_y = np.array([1] * mini_batch)
 
       # Generator Gradient Update
-      #g_loss = self.combined.train_on_batch(inc_eeg2, valid_y)
+      g_loss = self.combined.train_on_batch(inc_eeg2, valid_y)
 
       # Plot the progress
-      #print ("%d [D loss: %f, acc.: %.2f%%] [G loss: %f]" % (epoch, d_loss[0], 100*d_loss[1], g_loss))
+      print ("%d [D loss: %f, acc.: %.2f%%] [G loss: %f]" % (epoch, d_loss[0], 100*d_loss[1], g_loss))
 
       # If at save interval => save generated image samples
       # if (epoch % save_interval == 0) self.save_imgs(epoch)
 
 
+
+    plt.figure(2)
+    plt.subplot(211)
+    plt.plot(gen_eeg[0,9])
+    plt.subplot(212)
+    plt.plot(real_eeg[0,9])
+    plt.show()
 
 
 
@@ -241,7 +263,7 @@ if __name__ == '__main__':
 
   
   gan = GAN_CNN(gen_input_shape=incomplete.shape[1:], disc_input_shape=complete.shape[1:])
-  gan.train(incomplete=incomplete, complete=complete, epochs=20, batch_size=32, save_interval=200)
+  gan.train(incomplete=incomplete, complete=complete, epochs=400, batch_size=32, save_interval=200)
 
 
   '''
