@@ -31,3 +31,13 @@ def parse_eeg_data(subject_number):
   X /= np.max(np.abs(X))
 
   return X, y
+
+
+def parse_eeg_data_for_GAN(subject_number):
+
+	X, y = parse_eeg_data(subject_number)
+
+	complete = np.copy(X)
+	incomplete = np.delete(X, 9, 1)
+
+	return incomplete, complete

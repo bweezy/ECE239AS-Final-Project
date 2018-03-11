@@ -1,91 +1,115 @@
 from keras.models import Sequential, Model
 from keras.optimizers import Adam
 from keras import regularizers, layers
+from keras.layers import Input
+from keras import backend
 
-from read_eeg_file import parse_eeg_data
+from read_eeg_file import parse_eeg_data_for_GAN
 
 import numpy as np
 import h5py
 
 
+def EEG_Concatenate(input_list):
+
+  input1, x = input_list
+  
+  slice1 = input1[:,:9,:,:]
+  slice2 = input1[:,9:,:,:]
+
+  x = backend.expand_dims(x, axis=1)
+  x = backend.expand_dims(x, axis=3)
+
+  output = layers.Concatenate(axis=1)([slice1, x])
+  output = layers.Concatenate(axis=1)([output,slice2])
+  return output
+
+
+
 class GAN_CNN():
 
-  def __init__(self, input_shape):
+  def __init__(self, gen_input_shape, disc_input_shape):
+    
     self.input_size = None
     self.channels = None
 
     self.optimizer = Adam(lr=1e-3, beta_1=.9, 
                           beta_2=.99, decay=.99)
 
-    self.generator = self.Generator(output_shape=input_shape)
+    self.generator = self.Generator(input_shape=gen_input_shape)
+    
     self.generator.compile(loss='binary_crossentropy', optimizer=self.optimizer)
-    self.discriminator = self.Discriminator(input_shape=input_shape)
+
+    self.discriminator = self.Discriminator(input_shape=disc_input_shape)
     # For the combined model we will only train the generator
     self.discriminator.trainable = False
     self.discriminator.compile(loss='binary_crossentropy', optimizer=self.optimizer, metrics=['accuracy'])
     
-    # The generator takes noise as input and generated imgs
-    z = layers.Input(shape=(100,))
-    img = self.generator(z)
+    # The generator takes incomplete data as input and generates 1 channel
+    z = layers.Input(shape=gen_input_shape)
+    fake_complete = self.generator(z)
 
-
-
-    # The valid takes generated images as input and determines validity
-    valid = self.discriminator(img)
+    # The valid takes generated eeg data as input and determines validity
+    valid = self.discriminator(fake_complete)
 
     # The combined model  (stacked generator and discriminator) takes
     # noise as input => generates images => determines validity 
     self.combined = Model(z, valid)
     self.combined.compile(loss='binary_crossentropy', optimizer=self.optimizer)
 
-  def Generator(self, output_shape):
-      
-    # Look into size of noise vectors effect on generative models
-    noise_shape = (100,)
-    model = Sequential()
+
+  def Generator(self, input_shape):
+    
+    # Assuming input is 21x729x1
+    input1 = Input(shape=(input_shape))
+    c,t,d = input_shape
+
+    h = layers.Conv2D(25, kernel_size=(1,11), strides=(1,1), 
+                             padding='same', input_shape=input_shape, 
+                             kernel_initializer='he_normal',
+                             kernel_regularizer=regularizers.l2(.001))(input1)
+
+    h = layers.Conv2D(25, kernel_size=(21,1), strides=(1,1),
+                            padding='valid',
+                            kernel_initializer='he_normal',
+                            kernel_regularizer=regularizers.l2(.001))(h)
+
+    h = layers.LeakyReLU(alpha=0.2)(h)
+    h = layers.AveragePooling2D(pool_size=(1,3))(h)
 
 
-    model.add(layers.Dense(1*9*200, input_shape=noise_shape,
-                            kernel_initializer='he_normal',
-                            kernel_regularizer=regularizers.l2(.001)))
-    model.add(layers.LeakyReLU(alpha=0.2))
-    model.add(layers.Reshape((1,9,200)))
-    model.add(layers.UpSampling2D(size=(1,3)))
-
-    model.add(layers.Conv2D(100, kernel_size=(1,11), strides=(1,1),
-                            padding='same', 
-                            kernel_initializer='he_normal',
-                            kernel_regularizer=regularizers.l2(.001)))
-    model.add(layers.LeakyReLU(alpha=0.2))
-    model.add(layers.UpSampling2D(size=(1,3)))
-    model.add(layers.Conv2D(50, kernel_size=(1,11), strides=(1,1),
-                            padding='same', 
-                            kernel_initializer='he_normal',
-                            kernel_regularizer=regularizers.l2(.001)))
-    model.add(layers.LeakyReLU(alpha=0.2))
-    model.add(layers.UpSampling2D(size=(1,3)))
-    model.add(layers.Conv2D(25, kernel_size=(1,11), strides=(1,1),
-                            padding='same', 
-                            kernel_initializer='he_normal',
-                            kernel_regularizer=regularizers.l2(.001)))
-    model.add(layers.LeakyReLU(alpha=0.2))
-    model.add(layers.UpSampling2D(size=(22,3)))
-    model.add(layers.Conv2D(25, kernel_size=(22,1),
+    h = layers.Conv2D(50, kernel_size=(1,11),
                             padding='same',
                             kernel_initializer='he_normal',
-                            kernel_regularizer=regularizers.l2(.001)))
-    model.add(layers.Conv2D(1, kernel_size=(1,11), strides=(1,1), 
-                            padding='same',
-                            kernel_initializer='he_normal',
-                            kernel_regularizer=regularizers.l2(.001),
-                            activation='tanh'));
+                            kernel_regularizer=regularizers.l2(.001))(h)
+    h = layers.LeakyReLU(alpha=0.2)(h)
+    h = layers.AveragePooling2D(pool_size=(1,3))(h)
+
+    h = layers.Conv2D(100, kernel_size=(1,11), strides=(1,1),
+                      padding='same',
+                      kernel_initializer='he_normal',
+                      kernel_regularizer=regularizers.l2(.001))(h)
+    h = layers.LeakyReLU(alpha=0.2)(h)
+    h = layers.AveragePooling2D(pool_size=(1,3))(h)
+
+    h = layers.Conv2D(200, kernel_size=(1,11), strides=(1,1),
+                      padding='same',
+                      kernel_initializer='he_normal',
+                      kernel_regularizer=regularizers.l2(.001))(h)                          
+    h = layers.LeakyReLU(alpha=0.2)(h)
+    h = layers.AveragePooling2D(pool_size=(1,3))(h)
+
+    h = layers.Flatten()(h)
+    h = layers.Dense(729, activation='tanh')(h)
+
+    gen_output = layers.Lambda(EEG_Concatenate,
+                               output_shape=(c+1, t, d))([input1, h])
+
+    model = Model(inputs=input1, outputs=gen_output)
 
     model.summary()
 
-    noise = layers.Input(shape=noise_shape)
-    img = model(noise)
-
-    return Model(noise, img)
+    return model
 
 
 
@@ -101,56 +125,39 @@ class GAN_CNN():
 
       # Architecture Based on EEG Classification Model at https://arxiv.org/pdf/1703.05051.pdf
 
-
-      # Data = (22,1000,1)
       model.add(layers.Conv2D(25, kernel_size=(1,11), strides=(1,1), 
                                padding='same', input_shape=input_shape, 
                                kernel_initializer='he_normal',
                                kernel_regularizer=regularizers.l2(.001)))
-      # Data = (22,990,25)
 
       model.add(layers.Conv2D(25, kernel_size=(22,1), strides=(1,1),
                               padding='valid',
                               kernel_initializer='he_normal',
                               kernel_regularizer=regularizers.l2(.001)))
       model.add(layers.LeakyReLU(alpha=0.2))
-      
-      # Data = (1,990,25)
-
       model.add(layers.AveragePooling2D(pool_size=(1,3)))
 
-      # Data = (1,330,25)
 
-      # Second Conv Layer
       model.add(layers.Conv2D(50, kernel_size=(1,11),
                               padding='same',
                               kernel_initializer='he_normal',
                               kernel_regularizer=regularizers.l2(.001)))
       model.add(layers.LeakyReLU(alpha=0.2))
-
-      # Data = (1,330,50)
-
       model.add(layers.AveragePooling2D(pool_size=(1,3)))
-      # Data = (1,110,50)
 
-      # Third Conv Layer
       model.add(layers.Conv2D(100, kernel_size=(1,11), strides=(1,1),
                         padding='same',
                         kernel_initializer='he_normal',
                         kernel_regularizer=regularizers.l2(.001)))
       model.add(layers.LeakyReLU(alpha=0.2))
       model.add(layers.AveragePooling2D(pool_size=(1,3)))
-      # Data = (1,34,100)
 
-      # Fourth Conv Layer
       model.add(layers.Conv2D(200, kernel_size=(1,11), strides=(1,1),
                         padding='same',
                         kernel_initializer='he_normal',
                         kernel_regularizer=regularizers.l2(.001)))                          
       model.add(layers.LeakyReLU(alpha=0.2))
-      # Data = (1,24,200)
       model.add(layers.AveragePooling2D(pool_size=(1,3)))
-      # Data = (1,8,200)
 
       model.add(layers.Flatten())
       model.add(layers.Dense(1, activation='sigmoid'))
@@ -216,13 +223,14 @@ class GAN_CNN():
 if __name__ == '__main__':
 
   # Load data set
-  X, y = parse_eeg_data(0)
+  incomplete, complete = parse_eeg_data_for_GAN(0)
 
-  X = X[:,:,:729, np.newaxis]
+  incomplete = incomplete[:,:,:729, np.newaxis]
+  complete = complete[:,:,:729, np.newaxis]
 
-  print X.shape
-  gan = GAN_CNN(X.shape[1:])
-  gan.train(X_train=X, epochs=3, batch_size=32, save_interval=200)
+  
+  gan = GAN_CNN(gen_input_shape=incomplete.shape[1:], disc_input_shape=complete.shape[1:])
+  #gan.train(X_train=X, epochs=3, batch_size=32, save_interval=200)
 
 
   '''
