@@ -10,6 +10,8 @@ from read_eeg_file import parse_eeg_data_for_GAN
 
 import numpy as np
 import h5py
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 np.random.seed(1)
@@ -140,6 +142,7 @@ class GAN_CNN():
                               #kernel_regularizer=regularizers.l2(.001)))
       model.add(layers.LeakyReLU(alpha=0.2))
       model.add(layers.AveragePooling2D(pool_size=(1,3)))
+      model.add(layers.Dropout(rate=0.2))
 
 
       model.add(layers.Conv2D(50, kernel_size=(1,11),
@@ -148,6 +151,7 @@ class GAN_CNN():
                               #kernel_regularizer=regularizers.l2(.001)))
       model.add(layers.LeakyReLU(alpha=0.2))
       model.add(layers.AveragePooling2D(pool_size=(1,3)))
+      model.add(layers.Dropout(rate=0.2))
 
       model.add(layers.Conv2D(100, kernel_size=(1,11), strides=(1,1),
                         padding='same',
@@ -155,6 +159,7 @@ class GAN_CNN():
                         #kernel_regularizer=regularizers.l2(.001)))
       model.add(layers.LeakyReLU(alpha=0.2))
       model.add(layers.AveragePooling2D(pool_size=(1,3)))
+      model.add(layers.Dropout(rate=0.2))
 
       model.add(layers.Conv2D(200, kernel_size=(1,11), strides=(1,1),
                         padding='same',
@@ -162,6 +167,7 @@ class GAN_CNN():
                         #kernel_regularizer=regularizers.l2(.001)))                          
       model.add(layers.LeakyReLU(alpha=0.2))
       model.add(layers.AveragePooling2D(pool_size=(1,3)))
+      model.add(layers.Dropout(rate=0.2))
 
       model.add(layers.Flatten())
       model.add(layers.Dense(1, activation='sigmoid'))
@@ -263,7 +269,7 @@ if __name__ == '__main__':
 
   
   gan = GAN_CNN(gen_input_shape=incomplete.shape[1:], disc_input_shape=complete.shape[1:])
-  gan.train(incomplete=incomplete, complete=complete, epochs=400, batch_size=32, save_interval=200)
+  gan.train(incomplete=incomplete, complete=complete, epochs=100, batch_size=32, save_interval=200)
 
 
   '''
