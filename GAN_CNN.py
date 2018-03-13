@@ -35,8 +35,9 @@ def EEG_Concatenate(input_list):
 class GAN_CNN():
 
   def __init__(self, gen_input_shape, disc_input_shape):
+
     
-    self.input_size = None
+    self.input_size = gen_input_shape
     self.channels = None
 
     self.optimizer = Adam(lr=5e-4, beta_1=.9, 
@@ -65,7 +66,8 @@ class GAN_CNN():
 
 
   def Generator(self, input_shape):
-    
+    f = open( 'train_loss.txt', 'w+' )
+    # f.close()
     # Assuming input is 21x729x1
     input1 = Input(shape=(input_shape))
     c,t,d = input_shape
@@ -243,7 +245,7 @@ class GAN_CNN():
       print ("%d [D loss: %f, acc.: %.2f%%] [G loss: %f]" % (epoch, d_loss[0], 100*d_loss[1], g_loss))
 
       # If at save interval => save generated image samples
-      # if (epoch % save_interval == 0) self.save_imgs(epoch)
+      if (epoch % save_interval == 0): self.save_imgs(epoch, real_eeg, inc_eeg, d_loss, g_loss)
 
 
 
@@ -255,7 +257,24 @@ class GAN_CNN():
     plt.show()
 
 
+  def save_imgs(self, epoch, real_eeg, inc_eeg, d_loss, g_loss):
+    f = open( 'train_loss.txt', 'a+' )
+    # noise = np.random.normal(0, 1, (r * c, 100))
+    gen_imgs = self.generator.predict(inc_eeg)
 
+    # Rescale images 0 - 1
+    # gen_imgs = 0.5 * gen_imgs + 0.5
+
+    plt.figure(2)
+    plt.subplot(211)
+    plt.plot(gen_imgs[0,9])
+    plt.subplot(212)
+    plt.plot(real_eeg[0,9])
+
+    plt.savefig("gan_checkpoints/train_%d.png" % epoch)
+    f.write("%d [D loss: %f, acc.: %.2f%%] [G loss: %f]\n" % (epoch, d_loss[0], 100*d_loss[1], g_loss))
+    # f.close()
+    plt.close()
 
 
 
@@ -269,7 +288,7 @@ if __name__ == '__main__':
 
   
   gan = GAN_CNN(gen_input_shape=incomplete.shape[1:], disc_input_shape=complete.shape[1:])
-  gan.train(incomplete=incomplete, complete=complete, epochs=100, batch_size=32, save_interval=200)
+  gan.train(incomplete=incomplete, complete=complete, epochs=100, batch_size=32, save_interval=10)
 
 
   '''
