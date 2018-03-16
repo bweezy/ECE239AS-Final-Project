@@ -218,7 +218,7 @@ class GAN_CNN():
 
 
 
-      real_results = np.concatenate((np.ones((mini_batch, 1)),np.zeros((mini_batch, 1))))
+      real_results = np.concatenate((np.full((mini_batch, 1), 1),np.zeros((mini_batch, 1))))
       eeg_combined = np.concatenate((real_eeg, gen_eeg))
       
       perm = np.random.permutation(eeg_combined.shape[0])
