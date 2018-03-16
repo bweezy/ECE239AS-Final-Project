@@ -11,7 +11,6 @@ from read_eeg_file import parse_eeg_data_for_GAN
 import numpy as np
 import h5py
 import matplotlib
-matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 np.random.seed(1)
@@ -53,16 +52,20 @@ class GAN_CNN():
     self.discriminator_fixed.trainable = False
     
     # The generator takes incomplete data as input and generates 1 channel
-    z = layers.Input(shape=gen_input_shape)
-    fake_complete = self.generator(z)
+    incomplete = layers.Input(shape=gen_input_shape)
+    real_complete = layers.Input(shape=disc_input_shape)
+
+    fake_complete = self.generator(incomplete)
 
     # The valid takes generated eeg data as input and determines validity
     valid = self.discriminator_fixed(fake_complete)
 
     # The combined model  (stacked generator and discriminator) takes
     # noise as input => generates images => determines validity 
-    self.combined = Model(z, valid)
-    self.combined.compile(loss='binary_crossentropy', optimizer=self.optimizer)
+    self.combined = Model([incomplete, real_complete], [valid, fake_complete])
+    self.combined.compile(loss=['binary_crossentropy','mse'], loss_weights=[1e-3, 1], optimizer=self.optimizer)
+    #self.combined.summary()
+    #print self.combined.metrics_names
 
 
   def Generator(self, input_shape):
@@ -173,7 +176,7 @@ class GAN_CNN():
 
       model.add(layers.Flatten())
       model.add(layers.Dense(1, activation='sigmoid'))
-      model.summary()
+      #model.summary()
 
       eeg = layers.Input(shape=input_shape)
       validity = model(eeg)
@@ -188,7 +191,7 @@ class GAN_CNN():
 
     # Rescale data set (zero mean, unit variance)
 
-    mini_batch = int(batch_size/4)
+    mini_batch = int(batch_size/2)
 
     for epoch in range(epochs):
 
@@ -216,9 +219,7 @@ class GAN_CNN():
         plt.subplot(212)
         plt.plot(real_eeg[0,9])
 
-
-
-      real_results = np.concatenate((np.ones((mini_batch, 1)),np.zeros((mini_batch, 1))))
+      real_results = np.concatenate((.9*np.ones((mini_batch, 1)),np.zeros((mini_batch, 1))))
       eeg_combined = np.concatenate((real_eeg, gen_eeg))
       
       perm = np.random.permutation(eeg_combined.shape[0])
@@ -227,22 +228,26 @@ class GAN_CNN():
       
 
       d_loss = self.discriminator.train_on_batch(eeg_combined, real_results)
-
 	    # ---------------
       # Train Generator
       # ---------------
 
-      idx3 = np.random.randint(0, incomplete.shape[0], mini_batch)
+      idx3 = np.random.randint(0, incomplete.shape[0], batch_size)
       inc_eeg2 = incomplete[idx3]
+      real_eeg2 = complete[idx3]
+
 
       # Generator wants discriminator to think generated files are valid
-      valid_y = np.array([1] * mini_batch)
+      valid_y = np.array([1] * batch_size)
+      fake_complete = self.generator.predict(inc_eeg2)
 
       # Generator Gradient Update
-      g_loss = self.combined.train_on_batch(inc_eeg2, valid_y)
+      g_loss = self.combined.train_on_batch([inc_eeg2, fake_complete], [valid_y, real_eeg2])
 
       # Plot the progress
-      print ("%d [D loss: %f, acc.: %.2f%%] [G loss: %f]" % (epoch, d_loss[0], 100*d_loss[1], g_loss))
+      #print g_loss
+
+      print ("%d [D loss: %f, acc.: %.2f%%] [G loss: %f]" % (epoch, d_loss[0], 100*d_loss[1], g_loss[0]))
 
       # If at save interval => save generated image samples
       if (epoch % save_interval == 0): self.save_imgs(epoch, real_eeg, inc_eeg, d_loss, g_loss)
@@ -277,18 +282,27 @@ class GAN_CNN():
     plt.close()
 
 
-
 if __name__ == '__main__':
 
   # Load data set
+
   incomplete, complete = parse_eeg_data_for_GAN(0)
+
+
+  for i in np.arange(1,9):
+    inc, com = parse_eeg_data_for_GAN(i)
+    incomplete = np.concatenate((incomplete, inc), axis=0)
+    complete = np.concatenate((complete, com), axis=0)
+
+
+
 
   incomplete = incomplete[:,:,:729, np.newaxis]
   complete = complete[:,:,:729, np.newaxis]
 
   
   gan = GAN_CNN(gen_input_shape=incomplete.shape[1:], disc_input_shape=complete.shape[1:])
-  gan.train(incomplete=incomplete, complete=complete, epochs=100000, batch_size=32, save_interval=5000)
+  gan.train(incomplete=incomplete, complete=complete, epochs=100000, batch_size=128, save_interval=5000)
 
 
   '''
