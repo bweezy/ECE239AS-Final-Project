@@ -66,7 +66,7 @@ class GAN_CNN():
 
 
   def Generator(self, input_shape):
-    f = open( 'train_loss.txt', 'w+' )
+    
     # f.close()
     # Assuming input is 21x729x1
     input1 = Input(shape=(input_shape))
@@ -190,6 +190,13 @@ class GAN_CNN():
 
     mini_batch = int(batch_size/4)
 
+    # f = open( 'train_loss.txt', 'w+' )
+    f = h5py.File('train_loss.hdf5', 'w')
+
+    f.create_dataset("d_loss", (epochs/save_interval,),  dtype='float64')
+    f.create_dataset("acc", (epochs/save_interval,),  dtype='float64')
+    f.create_dataset("g_loss", (epochs/save_interval,),  dtype='float64')
+
     for epoch in range(epochs):
 
       # -------------------
@@ -245,7 +252,7 @@ class GAN_CNN():
       print ("%d [D loss: %f, acc.: %.2f%%] [G loss: %f]" % (epoch, d_loss[0], 100*d_loss[1], g_loss))
 
       # If at save interval => save generated image samples
-      if (epoch % save_interval == 0): self.save_imgs(epoch, real_eeg, inc_eeg, d_loss, g_loss)
+      if (epoch % save_interval == 0): self.save_imgs(epoch, real_eeg, inc_eeg, d_loss, g_loss, save_interval)
 
 
 
@@ -257,8 +264,9 @@ class GAN_CNN():
     plt.show()
 
 
-  def save_imgs(self, epoch, real_eeg, inc_eeg, d_loss, g_loss):
-    f = open( 'train_loss.txt', 'a+' )
+  def save_imgs(self, epoch, real_eeg, inc_eeg, d_loss, g_loss, save_interval):
+    # f = open( 'train_loss.txt', 'a+' )
+    f = h5py.File('train_loss.hdf5', 'a')
     # noise = np.random.normal(0, 1, (r * c, 100))
     gen_imgs = self.generator.predict(inc_eeg)
 
@@ -272,7 +280,13 @@ class GAN_CNN():
     plt.plot(real_eeg[0,9])
 
     plt.savefig("gan_checkpoints/train_%d.png" % epoch)
-    f.write("%d [D loss: %f, acc.: %.2f%%] [G loss: %f]\n" % (epoch, d_loss[0], 100*d_loss[1], g_loss))
+    # f.write("%d [D loss: %f, acc.: %.2f%%] [G loss: %f]\n" % (epoch, d_loss[0], 100*d_loss[1], g_loss))
+    f["d_loss"][epoch/save_interval] = d_loss[0] 
+    f["acc"][epoch/save_interval] = 100 * d_loss[1]
+    f["g_loss"][epoch/save_interval] = g_loss
+    # f['d_loss'].append(d_loss[0])
+    # f['acc'].append(100*d_loss[1])
+    # f['g_loss'].append(g_loss)
     # f.close()
     plt.close()
 
