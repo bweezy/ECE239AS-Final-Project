@@ -11,6 +11,7 @@ from read_eeg_file import parse_eeg_data_for_GAN
 import numpy as np
 import h5py
 import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 np.random.seed(1)
@@ -266,7 +267,7 @@ class GAN_CNN():
     plt.plot(gen_eeg[0,9])
     plt.subplot(212)
     plt.plot(real_eeg[0,9])
-    plt.show()
+    # plt.show()
 
 
   def save_imgs(self, epoch, real_eeg, inc_eeg, d_loss, g_loss, save_interval):
@@ -288,7 +289,7 @@ class GAN_CNN():
     # f.write("%d [D loss: %f, acc.: %.2f%%] [G loss: %f]\n" % (epoch, d_loss[0], 100*d_loss[1], g_loss))
     f["d_loss"][epoch/save_interval] = d_loss[0] 
     f["acc"][epoch/save_interval] = 100 * d_loss[1]
-    f["g_loss"][epoch/save_interval] = g_loss
+    f["g_loss"][epoch/save_interval] = g_loss[0] # g_loss is now an array, so need to take first element
     # f['d_loss'].append(d_loss[0])
     # f['acc'].append(100*d_loss[1])
     # f['g_loss'].append(g_loss)
@@ -316,7 +317,7 @@ if __name__ == '__main__':
 
   
   gan = GAN_CNN(gen_input_shape=incomplete.shape[1:], disc_input_shape=complete.shape[1:])
-  gan.train(incomplete=incomplete, complete=complete, epochs=100000, batch_size=128, save_interval=5000)
+  gan.train(incomplete=incomplete, complete=complete, epochs=50000, batch_size=128, save_interval=5000)
 
 
   '''
