@@ -40,7 +40,7 @@ class GAN_CNN():
     self.input_size = gen_input_shape
     self.channels = None
 
-    self.optimizer = Adam(lr=5e-4, beta_1=.9, 
+    self.optimizer = Adam(lr=1e-3, beta_1=.9, 
                           beta_2=.99, decay=.99)
 
     self.generator = self.Generator(input_shape=gen_input_shape)
