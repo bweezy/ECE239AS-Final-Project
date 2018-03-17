@@ -21,7 +21,6 @@ def train(self, epochs, batch_size=128, save_interval=50):
 
 	# Rescale data set (zero mean, unit variance)
 
-
 	half_batch = int(batch_size / 2)
 
 	for epoch in range(epochs):
@@ -56,4 +55,13 @@ def train(self, epochs, batch_size=128, save_interval=50):
 
         # If at save interval => save generated image samples
         if (epoch % save_interval == 0) self.save_imgs(epoch)
+
+
+    plt.figure(2)
+    plt.subplot(211)
+    plt.plot(gen_eeg[0, 9])
+    plt.subplot(212)
+    plt.plot(real_eeg[0, 9])
+    plt.show()
+
 

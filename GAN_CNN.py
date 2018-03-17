@@ -40,7 +40,7 @@ class GAN_CNN():
     self.input_size = gen_input_shape
     self.channels = None
 
-    self.optimizer = Adam(lr=5e-4, beta_1=.9, 
+    self.optimizer = Adam(lr=1e-3, beta_1=.9,
                           beta_2=.99, decay=.99)
 
     self.generator = self.Generator(input_shape=gen_input_shape)
@@ -201,6 +201,8 @@ class GAN_CNN():
     f.create_dataset("acc", (epochs/save_interval,),  dtype='float64')
     f.create_dataset("g_loss", (epochs/save_interval,),  dtype='float64')
 
+    global_real_eeg_c10mean = np.mean(complete[:, 9, :729], axis=0)
+
     for epoch in range(epochs):
 
       # -------------------
@@ -258,19 +260,19 @@ class GAN_CNN():
       print ("%d [D loss: %f, acc.: %.2f%%] [G loss: %f]" % (epoch, d_loss[0], 100*d_loss[1], g_loss[0]))
 
       # If at save interval => save generated image samples
-      if (epoch % save_interval == 0): self.save_imgs(epoch, real_eeg, inc_eeg, d_loss, g_loss, save_interval)
+      if (epoch % save_interval == 0 or epoch == epochs-1): self.save_imgs(epoch, global_real_eeg_c10mean, inc_eeg, d_loss, g_loss, save_interval)
 
-
-
-    plt.figure(2)
-    plt.subplot(211)
-    plt.plot(gen_eeg[0,9])
-    plt.subplot(212)
-    plt.plot(real_eeg[0,9])
+    # print 'Starting plot...'
+    # plt.figure(2)
+    # plt.subplot(211)
+    # plt.plot(gen_eeg[0,9])
+    # plt.subplot(212)
+    # plt.plot(real_eeg[0,9])
     # plt.show()
+    # print 'Plot Finished'
 
 
-  def save_imgs(self, epoch, real_eeg, inc_eeg, d_loss, g_loss, save_interval):
+  def save_imgs(self, epoch, real_avg_eeg, inc_eeg, d_loss, g_loss, save_interval):
     # f = open( 'train_loss.txt', 'a+' )
     f = h5py.File('train_loss.hdf5', 'a')
     # noise = np.random.normal(0, 1, (r * c, 100))
@@ -283,7 +285,7 @@ class GAN_CNN():
     plt.subplot(211)
     plt.plot(gen_imgs[0,9])
     plt.subplot(212)
-    plt.plot(real_eeg[0,9])
+    plt.plot(real_avg_eeg)
 
     plt.savefig("gan_checkpoints/train_%d.png" % epoch)
     # f.write("%d [D loss: %f, acc.: %.2f%%] [G loss: %f]\n" % (epoch, d_loss[0], 100*d_loss[1], g_loss))
@@ -309,15 +311,12 @@ if __name__ == '__main__':
     incomplete = np.concatenate((incomplete, inc), axis=0)
     complete = np.concatenate((complete, com), axis=0)
 
-
-
-
   incomplete = incomplete[:,:,:729, np.newaxis]
   complete = complete[:,:,:729, np.newaxis]
 
   
   gan = GAN_CNN(gen_input_shape=incomplete.shape[1:], disc_input_shape=complete.shape[1:])
-  gan.train(incomplete=incomplete, complete=complete, epochs=50000, batch_size=128, save_interval=5000)
+  gan.train(incomplete=incomplete, complete=complete, epochs=5, batch_size=128, save_interval=1)
 
 
   '''
