@@ -319,7 +319,7 @@ if __name__ == '__main__':
 
   
   gan = GAN_CNN(gen_input_shape=incomplete.shape[1:], disc_input_shape=complete.shape[1:])
-  gan.train(incomplete=incomplete, complete=complete, epochs=50000, batch_size=128, save_interval=5000)
+  gan.train(incomplete=incomplete, complete=complete, epochs=200000, batch_size=2, save_interval=5000)
 
 
   '''
