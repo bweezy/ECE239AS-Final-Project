@@ -260,10 +260,10 @@ class GAN_CNN():
       print ("%d [D loss: %f, acc.: %.2f%%] [G loss: %f]" % (epoch, d_loss[0], 100*d_loss[1], g_loss[0]))
 
       # If at save interval => save generated image samples
-      if (epoch % save_interval == 0 or epoch == epochs-1): self.save_imgs(epoch, global_real_eeg_c10mean, inc_eeg, d_loss, g_loss, save_interval)
+      if (epoch % save_interval == 0 or epoch == epochs-1): self.save_imgs(f, epoch, global_real_eeg_c10mean, inc_eeg, d_loss, g_loss, save_interval)
 
 
-
+    f.close()
     plt.figure(2)
     plt.subplot(211)
     plt.plot(gen_eeg[0,9])
@@ -272,22 +272,22 @@ class GAN_CNN():
     # plt.show()
 
 
-  def save_imgs(self, epoch, real_avg_eeg, inc_eeg, d_loss, g_loss, save_interval):
+  def save_imgs(self, f, epoch, real_avg_eeg, inc_eeg, d_loss, g_loss, save_interval):
     # f = open( 'train_loss.txt', 'a+' )
-    f = h5py.File('train_loss.hdf5', 'a')
+    # f = h5py.File('train_loss.hdf5', 'a')
     # noise = np.random.normal(0, 1, (r * c, 100))
     gen_imgs = self.generator.predict(inc_eeg)
 
     # Rescale images 0 - 1
     # gen_imgs = 0.5 * gen_imgs + 0.5
 
-    plt.figure(2)
-    plt.subplot(211)
-    plt.plot(gen_imgs[0,9])
-    plt.subplot(212)
-    plt.plot(real_avg_eeg)
+    #plt.figure(2)
+    #plt.subplot(211)
+    #plt.plot(gen_imgs[0,9])
+    #plt.subplot(212)
+    #plt.plot(real_avg_eeg)
 
-    plt.savefig("gan_checkpoints/train_%d.png" % epoch)
+    # plt.savefig("gan_checkpoints/train_%d.png" % epoch)
     # f.write("%d [D loss: %f, acc.: %.2f%%] [G loss: %f]\n" % (epoch, d_loss[0], 100*d_loss[1], g_loss))
     f["d_loss"][epoch/save_interval] = d_loss[0] 
     f["acc"][epoch/save_interval] = 100 * d_loss[1]
@@ -319,7 +319,7 @@ if __name__ == '__main__':
 
   
   gan = GAN_CNN(gen_input_shape=incomplete.shape[1:], disc_input_shape=complete.shape[1:])
-  gan.train(incomplete=incomplete, complete=complete, epochs=200000, batch_size=2, save_interval=5000)
+  gan.train(incomplete=incomplete, complete=complete, epochs=50000, batch_size=128, save_interval=100)
 
 
   '''
