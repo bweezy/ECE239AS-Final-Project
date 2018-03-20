@@ -32,11 +32,11 @@ class GAN_RNN():
     self.optimizer = Adam(lr=5e-4, beta_1=.9, beta_2=.99, decay=.99)
 
     self.generator = self.Generator(input_shape=gen_input_shape)
-    # self.generator.compile(loss='binary_crossentropy', optimizer=self.optimizer)
+    self.generator.compile(loss='binary_crossentropy', optimizer=self.optimizer)
 
     self.discriminator, self.discriminator_fixed = self.Discriminator(input_shape=disc_input_shape)
     self.discriminator.compile(loss='binary_crossentropy', optimizer=self.optimizer, metrics=['accuracy'])
-    #self.discriminator_fixed.trainable = False
+    self.discriminator_fixed.trainable = False
 
 
 
@@ -44,17 +44,15 @@ class GAN_RNN():
     z = Input(shape=gen_input_shape)
     gen_output = self.generator(z)
 
-    # The valid takes generated images as input and determines validity
     valid = self.discriminator_fixed(gen_output)
 
-    # The combined model  (stacked generator and discriminator) takes
-    # noise as input => generates images => determines validity
+    # The combined model  (stacked generator and fixed discriminator)
     self.combined = Model(z, valid)
     self.combined.compile(loss='binary_crossentropy', optimizer=self.optimizer)
 
   def Generator(self, input_shape):
 
-    # Need to give noise over 729 time steps - input shape is 729 x 21
+
     input1 = Input(shape=input_shape)
     t, c = input_shape
 
@@ -82,7 +80,7 @@ class GAN_RNN():
   def train(self, incomplete, complete, epochs, batch_size=128, save_interval=50):
 
 
-    mini_batch = int(batch_size/4)
+    mini_batch = int(batch_size/2)
 
     for epoch in range(epochs):
 
@@ -100,7 +98,7 @@ class GAN_RNN():
       idx2 = np.random.randint(0, incomplete.shape[0], mini_batch)
       inc_eeg = incomplete[idx1]
 
-      # Generate fake images (random noise)
+
       gen_eeg = self.generator.predict(inc_eeg)
 
       if(epoch == 0):
@@ -121,30 +119,24 @@ class GAN_RNN():
       
 
       d_loss = self.discriminator.train_on_batch(eeg_combined, results)
-      #d_loss_real = self.discriminator.train_on_batch(real_eeg, np.ones((mini_batch, 1)))
-      #d_loss_fake = self.discriminator.train_on_batch(gen_eeg, np.zeros((mini_batch, 1)))
-      #d_loss = 0.5 * np.add(d_loss_real, d_loss_fake)
 
-      print ("%d [D loss: %f, D acc: %.2f%%]"% (epoch, d_loss[0], 100*d_loss[1]))
-      #print ("%d [D loss: %f, D acc real: %.2f%%, D acc fake: %.2f%%]"% (epoch, d_loss[0], 100*d_loss_real[1], 100*d_loss_fake[1]))
       # ---------------
       # Train Generator
       # ---------------
 
-      #idx3 = np.random.randint(0, incomplete.shape[0], mini_batch)
-      #inc_eeg2 = incomplete[idx3]
+      idx3 = np.random.randint(0, incomplete.shape[0], mini_batch)
+      inc_eeg2 = incomplete[idx3]
 
-      # Generator wants discriminator to think generated files are valid
-      #valid_y = np.array([1] * mini_batch)
+      # Generator wants discriminator to think generated eeg are valid
+      # Added label smoother
+      valid_y = np.array([.9] * mini_batch)
 
       # Generator Gradient Update
-      #g_loss = self.combined.train_on_batch(inc_eeg2, valid_y)
+      g_loss = self.combined.train_on_batch(inc_eeg2, valid_y)
 
       # Plot the progress
-      #print ("%d [D loss: %f, acc.: %.2f%%] [G loss: %f]" % (epoch, d_loss[0], 100*d_loss[1], g_loss))
+      print ("%d [D loss: %f, acc.: %.2f%%] [G loss: %f]" % (epoch, d_loss[0], 100*d_loss[1], g_loss))
 
-      # If at save interval => save generated image samples
-      # if (epoch % save_interval == 0) self.save_imgs(epoch)
 
 
 
@@ -153,13 +145,19 @@ class GAN_RNN():
     plt.plot(gen_eeg[0,:,9])
     plt.subplot(212)
     plt.plot(real_eeg[0,:,9])
-    #plt.show()
+    plt.show()
 
 
 if __name__ == '__main__':
 
-
   incomplete, complete = parse_eeg_data_for_GAN(0)
+
+
+  for i in np.arange(1,9):
+    inc, com = parse_eeg_data_for_GAN(i)
+    incomplete = np.concatenate((incomplete, inc), axis=0)
+    complete = np.concatenate((complete, com), axis=0)
+
 
   incomplete = incomplete[:, :, :729]
   complete = complete[:, :, :729]
@@ -171,4 +169,3 @@ if __name__ == '__main__':
   gan.train(incomplete=incomplete, complete=complete, epochs=30, batch_size=128, save_interval=200)
 
 
-  #loss = gan.discriminator.train_on_batch(X, np.ones(X.shape[0]))
